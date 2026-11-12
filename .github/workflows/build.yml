@@ -1,8 +1,5 @@
 name: Build APK
-on:
-  push:
-    paths: ["jdm_game_godot.zip"]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -16,8 +13,18 @@ jobs:
           unzip -o jdm_game_godot.zip
       - name: Prepare Godot and keystore
         run: |
-          mkdir -p ~/.local/share/godot/export_templates ~/.config/godot
-          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/ || true
+          mkdir -p ~/.config/godot
+          src=$(find / -type d -name "4.3.stable" -not -path "/proc/*" -not -path "/github/*" 2>/dev/null | head -n1)
+          echo "found: $src"
+          dst=$HOME/.local/share/godot/export_templates/4.3.stable
+          mkdir -p "$dst"
+          if [ -n "$src" ]; then cp -r "$src"/. "$dst"/; fi
+          if [ ! -f "$dst/android_debug.apk" ]; then
+            wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -O /tmp/t.zip || curl -sSL -o /tmp/t.zip https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+            unzip -q /tmp/t.zip -d /tmp/t
+            cp -r /tmp/t/templates/. "$dst"/
+          fi
+          ls "$dst" | head -n 30
           keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore /tmp/debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
           cat > ~/.config/godot/editor_settings-4.tres <<EOT
           [gd_resource type="EditorSettings" format=3]
